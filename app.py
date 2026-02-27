@@ -194,20 +194,20 @@ with c9:
     st.write("")
     st.write("")
     if st.button("➕ Add Item", type="primary"):
-        if 'items' not in st.session_state: st.session_state.items = []
+        if 'order_items' not in st.session_state: st.session_state.order_items = []
         volume_cuft = (length * width * height) / 1728
-        st.session_state.items.append({
+        st.session_state.order_items.append({
             "name": item_name, "length_in": length, "width_in": width, "height_in": height,
             "weight_lbs": weight, "quantity": quantity, "unit_cost_usd": unit_cost,
             "product_category": category, "volume_cuft": volume_cuft
         })
         st.success(f"Added {item_name}!")
 
-if 'items' not in st.session_state: st.session_state.items = []
+if 'order_items' not in st.session_state: st.session_state.order_items = []
 
-if st.session_state.items:
+if st.session_state.order_items:
     st.subheader("📦 Items in Order")
-    df = pd.DataFrame(st.session_state.items)
+    df = pd.DataFrame(st.session_state.order_items)
     df['Total Volume'] = df['volume_cuft'] * df['quantity']
     df['Total Weight'] = df['weight_lbs'] * df['quantity']
     df['Total Cost'] = df['unit_cost_usd'] * df['quantity']
@@ -219,20 +219,20 @@ if st.session_state.items:
     c3.metric("Total Cost", f"${df['Total Cost'].sum():,.2f}")
     
     if st.button("🗑️ Clear All"):
-        st.session_state.items = []
+        st.session_state.order_items = []
         st.rerun()
 
-if st.session_state.items and st.button("🚀 Calculate", type="primary", use_container_width=True):
+if st.session_state.order_items and st.button("🚀 Calculate", type="primary", use_container_width=True):
     fees_data = load_fees_data()
     max_vol = fees_data['containers'][container_type]['volume_cuft']
-    space_needed = sum(i['volume_cuft'] * i['quantity'] for i in st.session_state.items)
+    space_needed = sum(i['volume_cuft'] * i['quantity'] for i in st.session_state.order_items)
     
     if space_needed > max_vol:
         st.error(f"❌ Exceeds container! Need {space_needed:.0f} cu ft, max {max_vol} cu ft")
     else:
-        item = st.session_state.items[0]
-        container_result = calculate_container_fit(st.session_state.items, container_type, utilization_target)
-        import_costs = calculate_import_costs(st.session_state.items, china_warehouse_days, ocean_freight, inland_trucking)
+        item = st.session_state.order_items[0]
+        container_result = calculate_container_fit(st.session_state.order_items, container_type, utilization_target)
+        import_costs = calculate_import_costs(st.session_state.order_items, china_warehouse_days, ocean_freight, inland_trucking)
         selling_price = item['unit_cost_usd'] * 3
         
         amazon_fba = {}
@@ -311,7 +311,7 @@ if st.session_state.items and st.button("🚀 Calculate", type="primary", use_co
         c3.metric("Gross Margin", f"${gross_margin:,.2f}")
         c4.metric("Margin %", f"{gross_margin_pct:.1f}%")
         
-        st.download_button("📥 Download CSV", pd.DataFrame(st.session_state.items).to_csv(index=False), "container_order.csv", "text/csv")
+        st.download_button("📥 Download CSV", pd.DataFrame(st.session_state.order_items).to_csv(index=False), "container_order.csv", "text/csv")
 
 st.markdown("---")
 st.caption("Container Economics Calculator v1.0 | Import China to USA")
