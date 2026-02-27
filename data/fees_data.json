@@ -1,0 +1,100 @@
+{
+  "containers": {
+    "20ft": {
+      "length_ft": 19.88,
+      "width_ft": 7.72,
+      "height_ft": 7.87,
+      "volume_cuft": 1170,
+      "max_weight_lbs": 47200,
+      "tare_weight_lbs": 5100,
+      "payload_lbs": 42100
+    },
+    "40ft": {
+      "length_ft": 39.88,
+      "width_ft": 7.72,
+      "height_ft": 7.87,
+      "volume_cuft": 2350,
+      "max_weight_lbs": 58400,
+      "tare_weight_lbs": 8300,
+      "payload_lbs": 50100
+    },
+    "40hc": {
+      "length_ft": 39.88,
+      "width_ft": 7.72,
+      "height_ft": 8.92,
+      "volume_cuft": 2690,
+      "max_weight_lbs": 58400,
+      "tare_weight_lbs": 8300,
+      "payload_lbs": 50100
+    }
+  },
+  "tariff_rates": {
+    "default": 21.0,
+    "categories": {
+      "electronics": 7.5,
+      "machinery": 7.5,
+      "furniture": 10.0,
+      "textiles": 16.5,
+      "footwear": 16.5,
+      "toys": 11.0,
+      "plastics": 6.5,
+      "steel": 25.0,
+      "aluminum": 10.0
+    }
+  },
+  "import_fees": {
+    "customs_bond_fee": 250.0,
+    "customs_entry_fee": 150.0,
+    "isi_fee": 150.0,
+    "merchandise_processing_fee": 0.0034,
+    "harbor_maintenance_fee": 0.125,
+    "import_security_fee": 0.0025
+  },
+  "shipping_costs": {
+    "ocean_freight_per_cuft": 35.0,
+    "port_to_warehouse_per_cbm": 150.0,
+    "chinese_warehousing_per_day_per_cuft": 0.02,
+    "insurance_rate": 0.0035,
+    "inland_trucking_flat": 1200.0
+  },
+  "fba_fees": {
+    "referral_fee_percent": {
+      "default": 0.15,
+      "category_overrides": {
+        "media": 0.08,
+        "books": 0.15,
+        "electronics": 0.08
+      }
+    },
+    "fulfillment_fees": [
+      {"size": "small", "weight_oz": 16, "fee": 3.22},
+      {"size": "large_1", "weight_oz": 64, "fee": 4.63},
+      {"size": "large_2", "weight_oz": 128, "fee": 5.53},
+      {"size": "medium", "weight_oz": 256, "fee": 6.85},
+      {"size": "large_3", "weight_oz": 512, "fee": 11.37},
+      {"size": "special_oversize", "weight_oz": 99999, "fee": 58.32}
+    ],
+    "storage_fees_monthly_per_cuft": {
+      "jan_sep": 0.75,
+      "oct_dec": 2.40
+    }
+  },
+  "wfs_fees": {
+    "referral_fee_percent": {
+      "default": 0.15,
+      "electronics": 0.06,
+      "books": 0.15,
+      "beauty": 0.20
+    },
+    "fulfillment_fees_per_lb": 0.75,
+    "pick_and_pack_fee": 1.50,
+    "storage_fees_monthly_per_cuft": {
+      "standard": 0.50,
+      "hazmat": 1.20
+    },
+    "weight_handling": {
+      "first_lb": 1.50,
+      "additional_lb": 0.50
+    }
+  }
+}
