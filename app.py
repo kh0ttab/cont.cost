@@ -12,14 +12,41 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-DATA_FILE = os.path.join(os.path.dirname(__file__), 'data', 'fees_data.json')
+def find_data_file(filename='fees_data.json'):
+    possible_paths = [
+        os.path.join(os.path.dirname(__file__), 'data', filename),
+        os.path.join(os.path.dirname(__file__), '..', 'data', filename),
+        os.path.join(os.path.dirname(__file__), filename),
+        os.path.join(os.getcwd(), 'data', filename),
+        os.path.join(os.getcwd(), filename),
+        filename
+    ]
+    for path in possible_paths:
+        if os.path.exists(path):
+            return path
+    return possible_paths[0]
 
-if not os.path.exists(DATA_FILE):
-    DATA_FILE = 'data/fees_data.json'
+DATA_FILE = find_data_file('fees_data.json')
+
+DEFAULT_FEES_DATA = {
+    "containers": {
+        "20ft": {"volume_cuft": 1170, "payload_lbs": 42100},
+        "40ft": {"volume_cuft": 2350, "payload_lbs": 50100},
+        "40hc": {"volume_cuft": 2690, "payload_lbs": 50100}
+    },
+    "tariff_rates": {"default": 21.0, "categories": {"electronics": 7.5, "machinery": 7.5, "furniture": 10.0, "textiles": 16.5, "footwear": 16.5, "toys": 11.0, "plastics": 6.5}},
+    "import_fees": {"customs_bond_fee": 250.0, "customs_entry_fee": 150.0, "isi_fee": 150.0, "merchandise_processing_fee": 0.0034, "harbor_maintenance_fee": 0.00125, "import_security_fee": 0.0025},
+    "shipping_costs": {"chinese_warehousing_per_day_per_cuft": 0.02, "insurance_rate": 0.0035},
+    "fba_fees": {"referral_fee_percent": {"default": 0.15, "category_overrides": {"electronics": 0.08}}, "fulfillment_fees": [{"weight_oz": 16, "fee": 3.22}, {"weight_oz": 64, "fee": 4.63}, {"weight_oz": 128, "fee": 5.53}, {"weight_oz": 256, "fee": 6.85}, {"weight_oz": 512, "fee": 11.37}, {"weight_oz": 99999, "fee": 58.32}], "storage_fees_monthly_per_cuft": {"jan_sep": 0.75}},
+    "wfs_fees": {"referral_fee_percent": {"default": 0.15, "electronics": 0.06}, "fulfillment_fees_per_lb": 0.75, "pick_and_pack_fee": 1.50, "storage_fees_monthly_per_cuft": {"standard": 0.50}, "weight_handling": {"first_lb": 1.50, "additional_lb": 0.50}}
+}
 
 def load_fees_data():
-    with open(DATA_FILE, 'r') as f:
-        return json.load(f)
+    try:
+        with open(DATA_FILE, 'r') as f:
+            return json.load(f)
+    except:
+        return DEFAULT_FEES_DATA
 
 def calculate_container_fit(items, container_type, utilization_target):
     fees_data = load_fees_data()
