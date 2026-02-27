@@ -14,6 +14,9 @@ st.set_page_config(
 
 DATA_FILE = os.path.join(os.path.dirname(__file__), 'data', 'fees_data.json')
 
+if not os.path.exists(DATA_FILE):
+    DATA_FILE = 'data/fees_data.json'
+
 def load_fees_data():
     with open(DATA_FILE, 'r') as f:
         return json.load(f)
