@@ -12,21 +12,8 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-def find_data_file(filename='fees_data.json'):
-    possible_paths = [
-        os.path.join(os.path.dirname(__file__), 'data', filename),
-        os.path.join(os.path.dirname(__file__), '..', 'data', filename),
-        os.path.join(os.path.dirname(__file__), filename),
-        os.path.join(os.getcwd(), 'data', filename),
-        os.path.join(os.getcwd(), filename),
-        filename
-    ]
-    for path in possible_paths:
-        if os.path.exists(path):
-            return path
-    return possible_paths[0]
-
-DATA_FILE = find_data_file('fees_data.json')
+if 'order_items' not in st.session_state:
+    st.session_state.order_items = []
 
 DEFAULT_FEES_DATA = {
     "containers": {
@@ -43,38 +30,42 @@ DEFAULT_FEES_DATA = {
 
 def load_fees_data():
     try:
-        with open(DATA_FILE, 'r') as f:
-            return json.load(f)
+        data_files = ['data/fees_data.json', 'fees_data.json', '/mount/src/cont.cost/data/fees_data.json']
+        for f in data_files:
+            if os.path.exists(f):
+                with open(f, 'r') as file:
+                    return json.load(file)
     except:
-        return DEFAULT_FEES_DATA
+        pass
+    return DEFAULT_FEES_DATA
 
-def calculate_container_fit(items, container_type, utilization_target):
+def calculate_container_fit(items_list, container_type, utilization_target):
     fees_data = load_fees_data()
     container = fees_data['containers'][container_type]
+    max_volume = container['volume_cuft']
+    max_weight = container['payload_lbs']
     
-    max_volume_cuft = container['volume_cuft']
-    max_weight_lbs = container['payload_lbs']
+    if not items_list:
+        return {'total_items_fit': 0, 'space_utilization_percent': 0, 'weight_utilization_percent': 0, 'remaining_volume_cuft': max_volume, 'total_weight_lbs': 0, 'max_weight_lbs': max_weight}
     
-    total_item_volume = sum(item['volume_cuft'] * item['quantity'] for item in items)
-    total_item_weight = sum(item['weight_lbs'] * item['quantity'] for item in items)
+    item = items_list[0]
+    volume_limit = max_volume * utilization_target
+    weight_limit = max_weight * utilization_target
     
-    volume_limit = max_volume_cuft * utilization_target
-    weight_limit = max_weight_lbs * utilization_target
+    vol_fit = int(volume_limit / item['volume_cuft']) if item['volume_cuft'] > 0 else 0
+    wt_fit = int(weight_limit / item['weight_lbs']) if item['weight_lbs'] > 0 else 0
+    total_fit = max(1, min(vol_fit, wt_fit))
     
-    volume_fit = int(volume_limit / items[0]['volume_cuft']) if items else 0
-    weight_fit = int(weight_limit / items[0]['weight_lbs']) if items else 0
-    
-    total_fit = max(1, min(volume_fit, weight_fit))
-    used_volume = total_fit * items[0]['volume_cuft']
-    used_weight = total_fit * items[0]['weight_lbs']
+    used_vol = total_fit * item['volume_cuft']
+    used_wt = total_fit * item['weight_lbs']
     
     return {
         'total_items_fit': total_fit,
-        'space_utilization_percent': round((used_volume / max_volume_cuft) * 100, 2),
-        'weight_utilization_percent': round((used_weight / max_weight_lbs) * 100, 2),
-        'remaining_volume_cuft': round(max_volume_cuft - used_volume, 2),
-        'total_weight_lbs': round(used_weight, 2),
-        'max_weight_lbs': max_weight_lbs
+        'space_utilization_percent': round((used_vol / max_volume) * 100, 2),
+        'weight_utilization_percent': round((used_wt / max_weight) * 100, 2),
+        'remaining_volume_cuft': round(max_volume - used_vol, 2),
+        'total_weight_lbs': round(used_wt, 2),
+        'max_weight_lbs': max_weight
     }
 
 def calculate_import_costs(item, container_result, china_warehouse_days=7, ocean_freight=35.0, inland_trucking=1200.0):
@@ -101,10 +92,7 @@ def calculate_import_costs(item, container_result, china_warehouse_days=7, ocean
     tariff_rate = tariff_rates['categories'].get(category, tariff_rates['default'])
     tariff_amount = cif_value * (tariff_rate / 100)
     
-    total_import = (total_cost + ocean_freight_cost + chinese_warehousing + insurance +
-                    import_fees['customs_bond_fee'] + import_fees['customs_entry_fee'] +
-                    import_fees['isi_fee'] + mpf + hmf + isf + port_to_warehouse +
-                    inland_trucking + tariff_amount)
+    total_import = total_cost + ocean_freight_cost + chinese_warehousing + insurance + import_fees['customs_bond_fee'] + import_fees['customs_entry_fee'] + import_fees['isi_fee'] + mpf + hmf + isf + port_to_warehouse + inland_trucking + tariff_amount
     
     return {
         'item_cost_usd': total_cost,
@@ -113,7 +101,7 @@ def calculate_import_costs(item, container_result, china_warehouse_days=7, ocean
         'insurance_usd': round(insurance, 2),
         'customs_bond_usd': import_fees['customs_bond_fee'],
         'customs_entry_usd': import_fees['customs_entry_fee'],
-        'isi_fee_usd': import_fees['isi_fee_usd'],
+        'isi_fee_usd': import_fees['isi_fee'],
         'merchandise_processing_usd': round(mpf, 2),
         'harbor_maintenance_usd': round(hmf, 2),
         'import_security_usd': round(isf, 2),
@@ -169,11 +157,11 @@ def calculate_walmart_wfs(item, selling_price):
     }
 
 
-st.title("📦 Container Economics Calculator")
+st.title("Container Economics Calculator")
 st.markdown("### Import from China to USA - Space & Cost Analysis")
 
 with st.sidebar:
-    st.header("⚙️ Configuration")
+    st.header("Configuration")
     container_type = st.selectbox("Container Type", ["20ft", "40ft", "40hc"], index=2)
     utilization_target = st.slider("Target Utilization %", 50, 100, 90) / 100
     china_warehouse_days = st.number_input("China Warehouse (days)", 0, 90, 7)
@@ -182,7 +170,7 @@ with st.sidebar:
     include_amazon = st.checkbox("Amazon FBA Fees", value=True)
     include_walmart = st.checkbox("Walmart WFS Fees", value=True)
 
-st.subheader("📋 Add Items")
+st.subheader("Add Items")
 
 c1, c2, c3, c4, c5 = st.columns(5)
 with c1: item_name = st.text_input("Item Name", "Product A")
@@ -199,45 +187,42 @@ with c8: category = st.selectbox("Category", categories)
 with c9:
     st.write("")
     st.write("")
-    if st.button("➕ Add Item", type="primary"):
-        if 'items' not in st.session_state: st.session_state.items = []
+    if st.button("Add Item", type="primary"):
         volume_cuft = (length * width * height) / 1728
-        st.session_state.items.append({
+        st.session_state.order_items.append({
             "name": item_name, "length_in": length, "width_in": width, "height_in": height,
             "weight_lbs": weight, "quantity": quantity, "unit_cost_usd": unit_cost,
             "product_category": category, "volume_cuft": volume_cuft
         })
         st.success(f"Added {item_name}!")
 
-if 'items' not in st.session_state: st.session_state.items = []
-
-if st.session_state.items:
-    st.subheader("📦 Items in Order")
-    df = pd.DataFrame(st.session_state.items)
+if st.session_state.order_items:
+    st.subheader("Items in Order")
+    df = pd.DataFrame(st.session_state.order_items)
     df['Total Volume'] = df['volume_cuft'] * df['quantity']
     df['Total Weight'] = df['weight_lbs'] * df['quantity']
     df['Total Cost'] = df['unit_cost_usd'] * df['quantity']
-    st.dataframe(df[['name', 'length_in', 'width_in', 'height_in', 'weight_lbs', 'quantity', 'unit_cost_usd', 'product_category', 'Total Volume', 'Total Weight', 'Total Cost']], use_container_width=True)
+    st.dataframe(df, use_container_width=True)
     
     c1, c2, c3 = st.columns(3)
     c1.metric("Total Volume", f"{df['Total Volume'].sum():.2f} cu ft")
     c2.metric("Total Weight", f"{df['Total Weight'].sum():.2f} lbs")
     c3.metric("Total Cost", f"${df['Total Cost'].sum():,.2f}")
     
-    if st.button("🗑️ Clear All"):
-        st.session_state.items = []
+    if st.button("Clear All"):
+        st.session_state.order_items = []
         st.rerun()
 
-if st.session_state.items and st.button("🚀 Calculate", type="primary", use_container_width=True):
+if st.session_state.order_items and st.button("Calculate", type="primary", use_container_width=True):
     fees_data = load_fees_data()
     max_vol = fees_data['containers'][container_type]['volume_cuft']
-    space_needed = sum(i['volume_cuft'] * i['quantity'] for i in st.session_state.items) * utilization_target
+    space_needed = sum(i['volume_cuft'] * i['quantity'] for i in st.session_state.order_items) * utilization_target
     
     if space_needed > max_vol:
-        st.error(f"❌ Exceeds container! Need {space_needed:.0f} cu ft, max {max_vol} cu ft")
+        st.error(f"Exceeds container! Need {space_needed:.0f} cu ft, max {max_vol} cu ft")
     else:
-        item = st.session_state.items[0]
-        container_result = calculate_container_fit(st.session_state.items, container_type, utilization_target)
+        item = st.session_state.order_items[0]
+        container_result = calculate_container_fit(st.session_state.order_items, container_type, utilization_target)
         import_costs = calculate_import_costs(item, container_result, china_warehouse_days, ocean_freight, inland_trucking)
         selling_price = item['unit_cost_usd'] * 3
         
@@ -252,9 +237,9 @@ if st.session_state.items and st.button("🚀 Calculate", type="primary", use_co
         gross_margin = selling_price - total_cost
         gross_margin_pct = (gross_margin / selling_price * 100) if selling_price > 0 else 0
         
-        st.success("✅ Calculation Complete!")
+        st.success("Calculation Complete!")
         st.markdown("---")
-        st.subheader("📊 Container Space Analysis")
+        st.subheader("Container Space Analysis")
         
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Items Fit", f"{container_result['total_items_fit']}")
@@ -269,7 +254,7 @@ if st.session_state.items and st.button("🚀 Calculate", type="primary", use_co
         st.plotly_chart(fig, use_container_width=True)
         
         st.markdown("---")
-        st.subheader("💰 Import Cost Breakdown")
+        st.subheader("Import Cost Breakdown")
         
         costs = {'Item Cost': import_costs['item_cost_usd'], 'Ocean Freight': import_costs['ocean_freight_usd'],
             'China Warehousing': import_costs['chinese_warehousing_usd'], 'Insurance': import_costs['insurance_usd'],
@@ -287,7 +272,7 @@ if st.session_state.items and st.button("🚀 Calculate", type="primary", use_co
         c2.metric("Per Unit", f"${import_costs['per_unit_import_cost_usd']:,.2f}")
         
         st.markdown("---")
-        st.subheader("🏪 Marketplace Fees")
+        st.subheader("Marketplace Fees")
         
         if include_amazon:
             st.markdown("**Amazon FBA**")
@@ -309,7 +294,7 @@ if st.session_state.items and st.button("🚀 Calculate", type="primary", use_co
             ]))
         
         st.markdown("---")
-        st.subheader("📈 Unit Economics")
+        st.subheader("Unit Economics")
         
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Landed Cost/Unit", f"${total_cost:,.2f}")
@@ -317,7 +302,7 @@ if st.session_state.items and st.button("🚀 Calculate", type="primary", use_co
         c3.metric("Gross Margin", f"${gross_margin:,.2f}")
         c4.metric("Margin %", f"{gross_margin_pct:.1f}%")
         
-        st.download_button("📥 Download CSV", pd.DataFrame(st.session_state.items).to_csv(index=False), "container_order.csv", "text/csv")
+        st.download_button("Download CSV", pd.DataFrame(st.session_state.order_items).to_csv(index=False), "container_order.csv", "text/csv")
 
 st.markdown("---")
 st.caption("Container Economics Calculator v1.0 | Import China to USA")
